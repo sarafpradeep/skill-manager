@@ -1,4 +1,4 @@
-import type { Skill, ToolEntry } from "../../types";
+import type { Skill, SkillScanSummary, ToolEntry } from "../../types";
 import { SkillCard } from "./SkillCard";
 
 interface SkillListProps {
@@ -7,9 +7,22 @@ interface SkillListProps {
   emptyHint: string;
   onToggle: (skill: Skill) => void;
   onOpen: (skill: Skill) => void;
+  /** Safety-scan summaries keyed by skill id; cards show a chip when
+   *  their id has one. */
+  scans?: Record<string, SkillScanSummary>;
+  /** Re-runs the safety scan for a skill and opens the report. */
+  onScanClick?: (skill: Skill) => void;
 }
 
-export function SkillList({ skills, toolEntries, emptyHint, onToggle, onOpen }: SkillListProps) {
+export function SkillList({
+  skills,
+  toolEntries,
+  emptyHint,
+  onToggle,
+  onOpen,
+  scans,
+  onScanClick,
+}: SkillListProps) {
   if (skills.length === 0) {
     return (
       <div className="empty-state">
@@ -28,6 +41,8 @@ export function SkillList({ skills, toolEntries, emptyHint, onToggle, onOpen }: 
           toolEntries={toolEntries}
           onToggle={onToggle}
           onOpen={onOpen}
+          scan={scans?.[skill.id]}
+          onScanClick={onScanClick}
         />
       ))}
     </>

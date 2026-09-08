@@ -1,3 +1,4 @@
+use super::scan;
 use super::{find_skill_by_manifest, resolve_target_root, skills_roots};
 use crate::collections::github::{GithubHttp, UreqGithubHttp};
 use crate::collections::{
@@ -6,6 +7,7 @@ use crate::collections::{
 };
 use crate::projects;
 use crate::skills::{self, Skill};
+use crate::skillspector::ScanReport;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
@@ -19,11 +21,26 @@ pub struct ListCollectionsResult {
     pub source: CatalogSource,
 }
 
+/// What an install attempt ended as. `blocked` means the safety scan
+/// flagged the skill (risk score over NVIDIA's threshold, or a
+/// high/critical finding) and nothing was written to disk — the UI
+/// shows the report and may re-invoke with `confirmRisky` to install
+/// anyway.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InstallResult {
-    pub skill: Skill,
-    pub skipped_links: u64,
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum InstallOutcome {
+    #[serde(rename_all = "camelCase")]
+    Installed {
+        skill: Skill,
+        skipped_links: u64,
+        /// The scan report when the skill was scanned; null when the
+        /// scanner is missing or the scan failed.
+        scan: Option<ScanReport>,
+        /// Why the skill went in unscanned, if it did.
+        scan_note: Option<String>,
+    },
+    #[serde(rename_all = "camelCase")]
+    Blocked { report: ScanReport },
 }
 
 fn config_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -235,7 +252,10 @@ pub fn remove_collection(app: AppHandle, id: String) -> Result<(), String> {
     collections::remove_user_collection(&dir, &id)
 }
 
+// Tauri commands must take flat invoke args, so the count is not
+// reducible without changing the frontend call shape.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn install_skill(
     app: AppHandle,
     tool: skills::AgentTool,
@@ -244,7 +264,8 @@ pub fn install_skill(
     skill: RemoteSkill,
     collection_id: String,
     overwrite: Option<bool>,
-) -> Result<InstallResult, String> {
+    confirm_risky: Option<bool>,
+) -> Result<InstallOutcome, String> {
     let tracked = projects::list(&app).unwrap_or_default();
     let root = resolve_target_root(&tracked, tool, scope, project_path)?;
     let roots = skills_roots(&tracked);
@@ -287,6 +308,19 @@ pub fn install_skill(
             }
         })?;
     let (files, skipped_links) = collections::files_from_tarball(&tarball, &skill.path)?;
+
+    // Safety gate: scan the exact bytes that would land in the managed
+    // root, before anything is written. A risky skill stops here with
+    // its report unless the user has explicitly confirmed this install.
+    let (scan, scan_note) = match scan::scan_for_install(
+        &crate::skillspector::SCAN,
+        &files,
+        confirm_risky.unwrap_or(false),
+    ) {
+        scan::InstallScan::Block(report) => return Ok(InstallOutcome::Blocked { report }),
+        scan::InstallScan::Proceed { scan, note } => (scan, note),
+    };
+
     let provenance = Provenance {
         owner: skill.owner.clone(),
         repo: skill.repo.clone(),
@@ -307,10 +341,14 @@ pub fn install_skill(
     if let Some(project) = tracked.iter().find(|p| manifest.starts_with(&p.path)) {
         let _ = projects::clear_skill_count(&app, &project.path);
     }
+    // The (re)install supersedes any previous scan result for this id.
+    scan::forget_result(&app, &manifest.to_string_lossy());
     let installed = find_skill_by_manifest(&app, &manifest)
         .ok_or_else(|| "skill not found after installation".to_string())?;
-    Ok(InstallResult {
+    Ok(InstallOutcome::Installed {
         skill: installed,
         skipped_links: skipped_links as u64,
+        scan,
+        scan_note,
     })
 }

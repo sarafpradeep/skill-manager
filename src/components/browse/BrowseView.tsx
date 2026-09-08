@@ -1,14 +1,17 @@
 import { useMemo, useState } from "react";
 import { api } from "../../api";
+import { useScannerStatus } from "../../hooks/useSkillScans";
 import { searchRemoteSkills } from "../../utils/collectionSearch";
 import { installedSkillKeys, isRemoteSkillInstalled } from "../../utils/installedSkills";
 import { CloseIcon } from "../ui/icons";
 import { useCollections } from "../../hooks/useCollections";
+import { SafetyReportModal } from "../modals/SafetyReportModal";
 import type {
   AgentTool,
   CatalogSource,
   ProjectInfo,
   RemoteSkill,
+  ScanReport,
   Skill,
   ToolEntry,
 } from "../../types";
@@ -24,6 +27,8 @@ interface BrowseViewProps {
   defaultProject: ProjectInfo | null;
   onBack: () => void;
   onInstalled: (skill: Skill) => void;
+  /** Folds an install's scan report into the app-wide chip state. */
+  onScanRecorded?: (id: string, report: ScanReport | null) => void;
 }
 
 function ownTool(entry: ToolEntry): AgentTool | undefined {
@@ -38,7 +43,9 @@ const SOURCE_LABELS: Record<CatalogSource, string> = {
 
 /** The full-window collections browser: built-ins are listed from the
  *  index bundled with the app (zero GitHub traffic); install and the
- *  refresh button are the only actions that hit the GitHub API. */
+ *  refresh button are the only actions that hit the GitHub API. Every
+ *  install is safety-scanned first — risky skills stop with their
+ *  report until the user explicitly confirms. */
 export function BrowseView({
   toolEntries,
   projects,
@@ -47,20 +54,24 @@ export function BrowseView({
   defaultProject,
   onBack,
   onInstalled,
+  onScanRecorded,
 }: BrowseViewProps) {
   const browseState = useCollections();
+  const scanner = useScannerStatus();
   const [query, setQuery] = useState("");
   const [addRepo, setAddRepo] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [installing, setInstalling] = useState<RemoteSkill | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmingOverwrite, setConfirmingOverwrite] = useState(false);
+  const [blocked, setBlocked] = useState<{ skill: RemoteSkill; report: ScanReport } | null>(null);
   const [tool, setTool] = useState<AgentTool>(defaultTool ?? "claude");
   const [scope, setScope] = useState<"user" | "project">(defaultProject ? "project" : "user");
   const [projectPath, setProjectPath] = useState<string>(
     defaultProject?.path ?? projects[0]?.path ?? "",
   );
   const [installError, setInstallError] = useState<string | null>(null);
+  const [installNote, setInstallNote] = useState<string | null>(null);
   // Names installed this session — covers installs into projects whose
   // skill list isn't loaded until the derived keys catch up on refresh.
   const [sessionInstalled, setSessionInstalled] = useState<string[]>([]);
@@ -95,22 +106,32 @@ export function BrowseView({
     setBusy(false);
   }
 
-  async function install(skill: RemoteSkill, overwrite = false) {
+  async function install(skill: RemoteSkill, overwrite = false, confirmRisky = false) {
     if (!browseState.activeId) return;
     setBusy(true);
     setInstallError(null);
     try {
-      const result = await api.installSkill({
+      const outcome = await api.installSkill({
         tool,
         scope,
         projectPath: scope === "project" ? projectPath : undefined,
         skill,
         collectionId: browseState.activeId,
         overwrite,
+        confirmRisky,
       });
+      if (outcome.status === "blocked") {
+        // Nothing was installed — show the report and stop here until
+        // the user decides.
+        setBusy(false);
+        setBlocked({ skill, report: outcome.report });
+        return;
+      }
       setSessionInstalled((names) => [...names, skill.name.trim().toLowerCase()]);
+      setInstallNote(outcome.scanNote);
+      onScanRecorded?.(outcome.skill.id, outcome.scan);
       closePicker();
-      onInstalled(result.skill);
+      onInstalled(outcome.skill);
     } catch (e) {
       const message = String(e);
       setBusy(false);
@@ -221,6 +242,14 @@ export function BrowseView({
             >
               {browseState.loading ? "refreshing…" : "refresh"}
             </button>
+            {scanner && !scanner.available && (
+              <span
+                className="source-pill"
+                title="installs are not scanned. install it with: uv tool install git+https://github.com/NVIDIA/skillspector.git"
+              >
+                safety scanner not installed
+              </span>
+            )}
             {browseState.stale && (
               <span className="source-pill stale" title="the live fetch failed; a cached listing is shown">
                 couldn't reach GitHub — cached list
@@ -229,6 +258,7 @@ export function BrowseView({
           </div>
 
           {browseState.error && <div className="create-error browse-error">{browseState.error}</div>}
+          {installNote && <div className="create-error browse-error">{installNote}</div>}
 
           <div className="skill-grid">
             {filtered.map((skill) => {
@@ -342,6 +372,15 @@ export function BrowseView({
           </div>
         </section>
       </div>
+
+      {blocked && (
+        <SafetyReportModal
+          report={blocked.report}
+          onClose={() => setBlocked(null)}
+          busy={busy}
+          onConfirmRisky={() => install(blocked.skill, confirmingOverwrite, true)}
+        />
+      )}
     </div>
   );
 }

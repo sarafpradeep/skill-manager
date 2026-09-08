@@ -4,6 +4,7 @@ import { BrowseView } from "./components/browse/BrowseView";
 import { CreateSkillModal } from "./components/modals/CreateSkillModal";
 import { EditorModal } from "./components/modals/EditorModal";
 import { ProjectsModal } from "./components/modals/ProjectsModal";
+import { SafetyReportModal } from "./components/modals/SafetyReportModal";
 import { Sidebar } from "./components/layout/Sidebar";
 import { SkillList } from "./components/skills/SkillList";
 import { Topbar } from "./components/layout/Topbar";
@@ -11,8 +12,9 @@ import { useGlobalSkills } from "./hooks/useGlobalSkills";
 import { usePinnedTools } from "./hooks/usePinnedTools";
 import { useProjects } from "./hooks/useProjects";
 import { useProjectSkills } from "./hooks/useProjectSkills";
+import { useScannerStatus, useSkillScans } from "./hooks/useSkillScans";
 import { filterSkills } from "./utils/filterSkills";
-import type { AgentTool, ProjectInfo, Skill, ToolEntry, View } from "./types";
+import type { AgentTool, ProjectInfo, ScanReport, Skill, ToolEntry, View } from "./types";
 import "./App.css";
 
 const ALL = "all" as const;
@@ -21,6 +23,14 @@ const ALL = "all" as const;
 interface BrowseDefaults {
   tool?: AgentTool;
   project: ProjectInfo | null;
+}
+
+/** A read-only safety report opened from a card chip or the editor;
+ *  null report means the scan is still running. */
+interface ScanView {
+  skill: Skill;
+  report: ScanReport | null;
+  error: string | null;
 }
 
 function App() {
@@ -33,11 +43,14 @@ function App() {
   const [browseDefaults, setBrowseDefaults] = useState<BrowseDefaults>({ project: null });
   const [browseFrom, setBrowseFrom] = useState<View>({ kind: "global" });
   const [showingAllProjects, setShowingAllProjects] = useState(false);
+  const [scanView, setScanView] = useState<ScanView | null>(null);
   const skillListRef = useRef<HTMLDivElement>(null);
 
   const global = useGlobalSkills();
   const projects = useProjects();
   const pinnedTools = usePinnedTools();
+  const scans = useSkillScans();
+  const scanner = useScannerStatus();
   const activeProject = view.kind === "project" ? view.project : null;
   const projectView = useProjectSkills(activeProject);
 
@@ -103,6 +116,22 @@ function App() {
   async function forgetProject(project: ProjectInfo) {
     await projects.forget(project);
     if (activeProject?.path === project.path) setView({ kind: "global" });
+  }
+
+  function openScanReport(skill: Skill) {
+    setScanView({ skill, report: null, error: null });
+    scans
+      .scanOne(skill.id)
+      .then((report) => {
+        setScanView((current) =>
+          current?.skill.id === skill.id ? { ...current, report } : current,
+        );
+      })
+      .catch((e) => {
+        setScanView((current) =>
+          current?.skill.id === skill.id ? { ...current, error: String(e) } : current,
+        );
+      });
   }
 
   // A tool's view is the union of every skills folder it reads — a skill
@@ -178,6 +207,7 @@ function App() {
                 projectView.reload();
               }
             }}
+            onScanRecorded={scans.recordReport}
           />
         ) : (
           <>
@@ -192,6 +222,9 @@ function App() {
               }
               onBrowse={openBrowse}
               onNewSkill={() => setCreatingSkill(true)}
+              onScanAll={scans.scanAll}
+              scanProgress={scans.scanning ? scans.progress : null}
+              scannerMissing={scanner !== null && !scanner.available}
             />
 
             <div className="skill-list" ref={skillListRef}>
@@ -202,6 +235,8 @@ function App() {
                   emptyHint="No skills found."
                   onToggle={global.toggle}
                   onOpen={setEditing}
+                  scans={scans.results}
+                  onScanClick={openScanReport}
                 />
               ) : projectView.loading ? (
                 <div className="empty-state">loading...</div>
@@ -212,6 +247,8 @@ function App() {
                   emptyHint="No skills found in this project."
                   onToggle={projectView.toggle}
                   onOpen={setEditing}
+                  scans={scans.results}
+                  onScanClick={openScanReport}
                 />
               )}
             </div>
@@ -225,6 +262,7 @@ function App() {
           toolEntries={global.toolEntries}
           onClose={() => setEditing(null)}
           onDelete={view.kind === "global" ? global.remove : removeProjectSkill}
+          onScan={openScanReport}
         />
       )}
 
@@ -268,6 +306,15 @@ function App() {
           activePath={activeProject?.path}
           onClose={() => setShowingAllProjects(false)}
           onOpen={openProject}
+        />
+      )}
+
+      {scanView && (
+        <SafetyReportModal
+          report={scanView.report}
+          error={scanView.error}
+          title={`safety report — ${scanView.skill.name}`}
+          onClose={() => setScanView(null)}
         />
       )}
     </div>

@@ -1,3 +1,4 @@
+import type { ScanProgressInfo } from "../../hooks/useSkillScans";
 import type { ToolFolderInfo } from "../../types";
 
 interface TopbarProps {
@@ -12,9 +13,27 @@ interface TopbarProps {
   onBrowse?: () => void;
   /** Opens the new-skill flow. */
   onNewSkill?: () => void;
+  /** Runs the SkillSpector scan across every managed skill. */
+  onScanAll?: () => void;
+  /** Non-null while a scan-all is in flight. */
+  scanProgress?: ScanProgressInfo | null;
+  /** True when the scanner CLI isn't installed — scans are skipped. */
+  scannerMissing?: boolean;
 }
 
-export function Topbar({ title, subtitle, folders, query, onQueryChange, onForgetProject, onBrowse, onNewSkill }: TopbarProps) {
+export function Topbar({
+  title,
+  subtitle,
+  folders,
+  query,
+  onQueryChange,
+  onForgetProject,
+  onBrowse,
+  onNewSkill,
+  onScanAll,
+  scanProgress,
+  scannerMissing,
+}: TopbarProps) {
   return (
     <div className="topbar">
       <div className="topbar-title">
@@ -35,6 +54,26 @@ export function Topbar({ title, subtitle, folders, query, onQueryChange, onForge
         )}
       </div>
       <div className="topbar-actions">
+        {onScanAll && (
+          <button
+            className="btn"
+            onClick={onScanAll}
+            disabled={scanProgress !== null && scanProgress !== undefined}
+            title="scan every installed skill for safety issues (NVIDIA SkillSpector, static analysis)"
+          >
+            {scanProgress
+              ? `scanning ${scanProgress.done}/${scanProgress.total}…`
+              : "safety scan"}
+          </button>
+        )}
+        {scannerMissing && (
+          <span
+            className="source-pill"
+            title="install it with: uv tool install git+https://github.com/NVIDIA/skillspector.git"
+          >
+            no safety scanner
+          </span>
+        )}
         {onBrowse && (
           <button className="btn" onClick={onBrowse} title="browse and install skills from GitHub collections">
             browse

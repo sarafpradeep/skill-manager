@@ -12,9 +12,11 @@ interface EditorModalProps {
   toolEntries: ToolEntry[];
   onClose: () => void;
   onDelete: (skill: Skill) => void;
+  /** Runs the safety scan and opens the report over this dialog. */
+  onScan?: (skill: Skill) => void;
 }
 
-export function EditorModal({ skill, toolEntries, onClose, onDelete }: EditorModalProps) {
+export function EditorModal({ skill, toolEntries, onClose, onDelete, onScan }: EditorModalProps) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -102,6 +104,15 @@ export function EditorModal({ skill, toolEntries, onClose, onDelete }: EditorMod
           >
             {mode === "edit" ? "view" : "edit"}
           </button>
+          {onScan && (
+            <button
+              className="btn"
+              onClick={() => onScan(skill)}
+              title="scan this skill's folder with the SkillSpector safety scanner"
+            >
+              safety scan
+            </button>
+          )}
           <button className="btn danger" onClick={remove}>
             delete
           </button>

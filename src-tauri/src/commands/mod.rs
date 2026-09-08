@@ -8,6 +8,7 @@ use tauri::AppHandle;
 mod collections;
 mod create_skill;
 mod projects;
+mod scan;
 mod skills;
 
 // The `#[tauri::command]` macros generate hidden `__cmd__X` and
@@ -35,6 +36,13 @@ pub use projects::{
     __tauri_command_name_touch_project, add_project, list_detected_projects,
     list_project_skill_counts, list_project_skills, list_projects, refresh_detected_projects,
     remove_project, set_project_pinned, touch_project,
+};
+pub use scan::{
+    __cmd__check_scanner, __cmd__list_scan_results, __cmd__scan_all_skills,
+    __cmd__scan_installed_skill, __tauri_command_name_check_scanner,
+    __tauri_command_name_list_scan_results, __tauri_command_name_scan_all_skills,
+    __tauri_command_name_scan_installed_skill, check_scanner, list_scan_results, scan_all_skills,
+    scan_installed_skill,
 };
 pub use skills::{
     __cmd__delete_skill, __cmd__list_skills, __cmd__list_tool_entries, __cmd__read_skill_content,
