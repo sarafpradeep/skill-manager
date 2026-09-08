@@ -1282,3 +1282,207 @@ body,
   font-size: 12px;
   color: var(--danger-bright);
 }
+
+/* --- safety scanning (NVIDIA SkillSpector) --------------------------- */
+
+/* per-card chip in the skill grid */
+.scan-pill {
+  margin-left: auto;
+  font-family: inherit;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px 8px;
+  color: var(--text-faint);
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.scan-pill:hover {
+  color: var(--text);
+}
+
+.scan-pill.warn {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.scan-pill.danger,
+.scan-pill.failed {
+  color: var(--danger-bright);
+  border-color: var(--danger);
+}
+
+.scan-pill.failed {
+  border-style: dashed;
+}
+
+/* report modal */
+.safety-modal .safety-score {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.safety-score.danger {
+  border-color: var(--danger);
+}
+
+.safety-score.warn {
+  border-color: var(--border-strong);
+}
+
+.safety-score-number {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.safety-score-number,
+.safety-score-outof {
+  color: var(--text);
+}
+
+.safety-score.danger .safety-score-number {
+  color: var(--danger-bright);
+}
+
+.safety-score-outof {
+  font-size: 14px;
+  color: var(--text-faint);
+}
+
+.safety-score-meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+.safety-counts {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+
+.safety-count {
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px 10px;
+  color: var(--text-faint);
+}
+
+.safety-count-critical,
+.safety-count-high {
+  color: var(--danger-bright);
+  border-color: var(--danger);
+}
+
+.safety-count-medium {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.safety-findings {
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.safety-finding {
+  border-bottom: 1px solid var(--border);
+}
+
+.safety-finding:last-child {
+  border-bottom: none;
+}
+
+.safety-finding summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.safety-finding summary::-webkit-details-marker {
+  display: none;
+}
+
+.safety-finding summary:hover {
+  background: var(--bg-panel);
+}
+
+.safety-sev {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 6px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.safety-sev-critical,
+.safety-sev-high {
+  color: var(--danger-bright);
+  border-color: var(--danger);
+}
+
+.safety-sev-medium {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.safety-finding-id {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.safety-finding-text {
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.safety-finding-body {
+  padding: 4px 10px 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.safety-finding-loc {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+
+.safety-snippet {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.safety-remediation {
+  color: var(--text-dim);
+}
+
+.safety-footer-note {
+  font-size: 11px;
+  color: var(--text-faint);
+}

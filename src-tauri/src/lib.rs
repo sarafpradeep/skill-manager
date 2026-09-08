@@ -3,6 +3,7 @@ mod commands;
 mod detect;
 mod projects;
 mod skills;
+mod skillspector;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -32,6 +33,10 @@ pub fn run() {
             commands::set_project_pinned,
             commands::touch_project,
             commands::list_project_skills,
+            commands::check_scanner,
+            commands::list_scan_results,
+            commands::scan_installed_skill,
+            commands::scan_all_skills,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

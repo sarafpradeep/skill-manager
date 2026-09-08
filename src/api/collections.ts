@@ -2,8 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   BrowseResult,
   CollectionInfo,
+  InstallOutcome,
   InstallSkillInput,
-  InstallResult,
   ListCollectionsResult,
 } from "../types";
 
@@ -25,7 +25,7 @@ export const collectionsApi = {
   removeCollection(id: string): Promise<void> {
     return invoke("remove_collection", { id });
   },
-  installSkill(input: InstallSkillInput): Promise<InstallResult> {
+  installSkill(input: InstallSkillInput): Promise<InstallOutcome> {
     return invoke("install_skill", {
       tool: input.tool,
       scope: input.scope,
@@ -33,6 +33,7 @@ export const collectionsApi = {
       skill: input.skill,
       collectionId: input.collectionId,
       overwrite: input.overwrite ?? null,
+      confirmRisky: input.confirmRisky ?? null,
     });
   },
 };

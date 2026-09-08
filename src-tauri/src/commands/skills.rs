@@ -47,6 +47,8 @@ pub fn delete_skill(app: AppHandle, id: String) -> Result<(), String> {
     {
         let _ = projects::clear_skill_count(&app, &project.path);
     }
+    // The skill is gone — its last safety report must not linger as a chip.
+    crate::commands::scan::forget_result(&app, &id);
     Ok(())
 }
 

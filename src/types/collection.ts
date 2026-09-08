@@ -1,4 +1,4 @@
-import type { Skill, SkillScope } from "./skill";
+import type { SkillScope } from "./skill";
 import type { AgentTool } from "./tool";
 
 /** One installable skill in a remote GitHub collection. */
@@ -39,11 +39,6 @@ export interface BrowseResult {
   stale: boolean;
 }
 
-export interface InstallResult {
-  skill: Skill;
-  skippedLinks: number;
-}
-
 export interface InstallSkillInput {
   tool: AgentTool;
   scope: SkillScope;
@@ -51,4 +46,7 @@ export interface InstallSkillInput {
   skill: RemoteSkill;
   collectionId: string;
   overwrite?: boolean;
+  /** Installs despite a flagged safety scan — set only from the
+   *  explicit "install anyway" confirmation. */
+  confirmRisky?: boolean;
 }

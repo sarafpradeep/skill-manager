@@ -104,6 +104,13 @@ ecosystem (Claude Code, Codex, Cursor, Gemini CLI, OpenCode, and others).
   tool's user or project folder in one click. Add any `owner/repo`
   collection of your own, too — every install records where it came
   from.
+- 🛡️ **Safety scanning** — every install is scanned by
+  [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector) (static
+  analysis, no LLM, no API keys) before anything touches disk: prompt
+  injection, data exfiltration, dangerous code, and ~70 other patterns.
+  A risky skill is blocked with its full report until you explicitly
+  choose "install anyway", and one click re-scans every installed skill.
+  See [Safety scanning](#safety-scanning).
 - ✨ **Create skills** — start a new skill from a minimal template in
   any tool's folder and write its instructions in the built-in editor.
 - 🗂️ **Unified view** across every tool's skills directory — no more digging
@@ -184,6 +191,39 @@ Grab a build from the [latest release](https://github.com/abubakarsiddik31/skill
 > **Windows** — SmartScreen will show *Windows protected your PC*. Click
 > **More info**, then **Run anyway**.
 
+## Safety scanning
+
+Skill Manager integrates [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector)
+(Apache-2.0), a security scanner for agent skills, as an **optional** layer:
+
+```bash
+uv tool install git+https://github.com/NVIDIA/skillspector.git
+# or, with pip: pipx install / pip install from the same repo
+```
+
+Once the `skillspector` CLI is on your machine (the app also checks
+`~/.local/bin`, `/opt/homebrew/bin`, and `/usr/local/bin`, and honors a
+`SKILL_MANAGER_SKILLSPECTOR` env var pointing at the binary):
+
+- **Every install is scanned first.** The scanner runs in static-only mode
+  (`--no-llm`: no LLM calls, no API keys) against the exact files the install
+  would write — 71 vulnerability patterns across 17 categories, including
+  prompt injection, data exfiltration, privilege escalation, supply-chain
+  tricks, and dangerous code.
+- **Risky skills are blocked.** Following NVIDIA's triage policy, a risk
+  score above 50/100 *or* any high/critical finding stops the install before
+  anything touches disk. The full report (score, findings, locations, fixes)
+  opens in-app; installing anyway is an explicit button.
+- **Everything you already have can be audited.** The *safety scan* button
+  scans all installed skills (in parallel, one scan per on-disk folder) and
+  every skill card gets a score chip; the last result survives restarts and
+  individual skills can be re-scanned from the editor.
+
+No scanner installed? Installs work exactly as before — the app just says so
+instead of pretending. Scanning is local: skill contents never leave your
+machine (except SkillSpector's optional OSV.dev CVE lookups, which fall back
+to offline automatically).
+
 ## Development
 
 Requires [Node.js](https://nodejs.org/) and the
@@ -216,6 +256,7 @@ src/
 src-tauri/src/
   skills/               one adapter per tool, all implementing SkillAdapter
   collections/          GitHub collections: catalog, bundled index, install
+  skillspector/         optional NVIDIA SkillSpector safety-scan integration
   commands/             tauri commands exposed to the frontend
   projects.rs           persisted list of tracked project folders
 docs/                   the landing page (GitHub Pages)
@@ -229,6 +270,9 @@ new module pointing at its skills directory.
 
 - [x] Skill browser & install — browse curated community collections and
   install them into any tool's skills folder in one click
+- [x] Safety scanning — NVIDIA SkillSpector integration: pre-install scans,
+  risky-install blocking with the full report, and one-click audits of every
+  installed skill
 - [ ] Update support for installed collection skills (in-app update
   checks against the repo they came from)
 - [ ] Auto-update support (in-app update checks, no manual reinstall)
